@@ -19,6 +19,8 @@ before_cache: |
 before_script: |
   if [[ "$TRAVIS_RUST_VERSION" == nightly-2019-04-12 ]]; then
     rustup component add miri
+    rustup component add rust-src
+    cargo install xargo -f
   fi
 
 script: |
