@@ -1,0 +1,7 @@
+[package]
+name = "vecshard"
+version = "0.1.0"
+authors = ["whentze <muvlon@hentzes.de>"]
+edition = "2018"
+
+[dependencies]
