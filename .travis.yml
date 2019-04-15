@@ -16,6 +16,11 @@ before_cache: |
     RUSTFLAGS="--cfg procmacro2_semver_exempt" cargo install cargo-tarpaulin
   fi
 
+before_script: |
+  if [[ "$TRAVIS_RUST_VERSION" == nightly-2019-04-12 ]]; then
+    rustup component add miri
+  fi
+
 script: |
   cargo clean
   cargo test
