@@ -177,25 +177,75 @@ impl<T> ShardExt for VecShard<T> {
 ///
 /// If `left` and `right` are from the same [`Vec`] and directly adjacent
 /// with the end of `left` directly touching the start of `right`,
-/// this will re-use that allocation. Otherwise, it will likely allocate a new [`Vec`].
-pub fn merge_shards<T>(mut left: VecShard<T>, right: VecShard<T>) -> VecShard<T> {
-    if Arc::ptr_eq(&left.dropper, &right.dropper)
-        && unsafe { left.data.add(left.len) } == right.data
-    {
-        left.len += right.len;
-        mem::drop(right);
-        left
-    } else {
-        // Drop the VecShardArc right away so we have a chance that
-        // left holds the last Arc and can re-use the whole Vec
-        let (dropper, data, len) = right.into_raw_parts();
-        mem::drop(dropper);
+/// this will work in O(1) time. Otherwise, it will need to copy things around and possibly allocate
+/// a new Vec
+pub fn merge_shards<T>(left: VecShard<T>, right: VecShard<T>) -> VecShard<T> {
+    let (rdropper, rdata, rlen) = right.into_raw_parts();
+    let (ldropper, ldata, llen) = left.into_raw_parts();
 
-        let mut vec: Vec<T> = left.into();
-        vec.reserve(len);
-        unsafe { ptr::copy(data, vec.as_mut_ptr(), len) };
-        VecShard::from(vec)
+    // Are the shards even from the same Vec?
+    if Arc::ptr_eq(&ldropper, &rdropper) {
+        if unsafe { ldata.add(llen) } == rdata {
+            // fast path: left and right can be merged neatly
+            return VecShard {
+                dropper: ldropper,
+                data: ldata,
+                len: llen + rlen,
+            };
+        }
+
+        // Drop the other Arc right away so we have
+        // a chance that left holds the last Arc
+        mem::drop(rdropper);
+
+        // If left is now the last Arc, we can re-use the allocation
+        if Arc::strong_count(&ldropper) == 1 {
+            let new_data = unsafe {
+                if rdata < ldata {
+                    // If right is actually on the left side, we have to shuffle things around
+                    if llen < rlen {
+                        //  ...  |---------- r ----------| ... |------ l ------|
+                        std::ptr::swap_nonoverlapping(rdata, ldata, llen);
+                        //  ...  |------ l ------|- ..r -| ... |----- r.. -----|
+                        std::ptr::copy(ldata, rdata.add(rlen), llen);
+                        //  ...  |------ l ------|- ..r -|----- r.. -----|  ...
+                        std::slice::from_raw_parts_mut(rdata.add(llen), rlen)
+                            .rotate_left(rlen - llen);
+                    //      ...  |------ l ------|---------- r ----------|  ...
+                    } else {
+                        //  ...  |------ r ------| ... |---------- l ----------|
+                        std::ptr::swap_nonoverlapping(rdata, ldata, rlen);
+                        //  ...  |----- l.. -----| ... |------ r ------|- ..l -|
+                        std::slice::from_raw_parts_mut(ldata, llen).rotate_left(rlen);
+                        //  ...  |----- l.. -----| ... |- ..l -|------ r ------|
+                        std::ptr::copy(ldata, rdata.add(rlen), llen);
+                        //  ...  |---------- l ----------|------ r ------|  ...
+                    };
+                    rdata
+                } else {
+                    // Otherwise, just scootch it over
+                    //  ...  |---------- l ----------|    ...  |------ r ------|
+                    std::ptr::copy(rdata, ldata.add(llen), rlen);
+                    //  ...  |---------- l ----------|------ r ------|   ...
+                    ldata
+                }
+            };
+            return VecShard {
+                dropper: ldropper,
+                data: new_data,
+                len: llen + rlen,
+            };
+        }
     }
+
+    // Give up and allocate
+    let mut vec = Vec::with_capacity(llen + rlen);
+    unsafe {
+        ptr::copy(ldata, vec.as_mut_ptr(), llen);
+        ptr::copy(rdata, vec.as_mut_ptr().add(llen), rlen);
+        vec.set_len(llen + rlen);
+    }
+    VecShard::from(vec)
 }
 
 impl<T> Drop for VecShard<T> {
