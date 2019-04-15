@@ -1,6 +1,6 @@
 [package]
 name = "vecshard"
-version = "0.0.2"
+version = "0.1.0"
 authors = ["muvlon <muvlon@hentzes.de>"]
 description = "Split Vecs in constant time"
 repository = "https://github.com/whentze/vecshard"
