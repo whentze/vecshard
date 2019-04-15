@@ -22,6 +22,10 @@ The individual items in the shards, however, are dropped as soon as the shard is
 
 This functionality is provided through an extension trait for `Vec`, `ShardExt`.
 
+## Documentation
+
+Please refer to the [API docs on docs.rs](https://docs.rs/vecshard).
+
 ## Basic Example
 
 ```rust
