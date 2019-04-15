@@ -1,9 +1,9 @@
 [package]
-name = "vecshard"
+name = "vecshart"
 version = "0.0.2"
 authors = ["muvlon <muvlon@hentzes.de>"]
 description = "Split Vecs in constant time"
-repository = "https://github.com/whentze/vecshard"
+repository = "https://github.com/whentze/vecshart"
 categories = ["algorithms", "data-structures", "memory-management"]
 readme = "README.md"
 license = "CC0-1.0"

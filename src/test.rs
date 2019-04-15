@@ -1,4 +1,4 @@
-use crate::{ShardExt, VecShard};
+use crate::{ShartExt, VecShart};
 
 #[test]
 fn deref() {
@@ -12,7 +12,7 @@ fn deref() {
     right[1] = 8;
     right[2] = 13;
 
-    let fib = crate::merge_shards(left, right);
+    let fib = crate::merge_sharts(left, right);
     assert_eq!(*fib, [1, 2, 3, 5, 8, 13]);
 }
 
@@ -20,8 +20,8 @@ fn deref() {
 fn vec_roundtrip() {
     let vec = vec!["ja", "da", "meint", "der", "ich", "hät'", "abgeschmatzt"];
 
-    let shard = VecShard::from(vec.clone());
-    let vec2: Vec<_> = shard.into();
+    let shart = VecShart::from(vec.clone());
+    let vec2: Vec<_> = shart.into();
     assert_eq!(vec, vec2);
 }
 
@@ -31,7 +31,7 @@ fn into_vecs() {
 
     // this one needs to allocate a new Vec, since right still exists
     let lvec: Vec<_> = left.into();
-    // this one is now the only shard left and can re-use the allocation
+    // this one is now the only shart left and can re-use the allocation
     let rvec: Vec<_> = right.into();
 
     assert_eq!(lvec, [1, 11, 21]);
@@ -74,17 +74,17 @@ fn clone_works() {
 #[test]
 fn debug_looks_ok() {
     use std::fmt::Write;
-    let shard = VecShard::from(vec![1, 3, 1, 2]);
+    let shart = VecShart::from(vec![1, 3, 1, 2]);
 
     let mut buf = String::with_capacity(16);
-    write!(buf, "{:?}", shard).unwrap();
+    write!(buf, "{:?}", shart).unwrap();
 
     assert_eq!(buf, "[1, 3, 1, 2]");
 }
 
 #[test]
 fn lucky_merges() {
-    use crate::merge_shards;
+    use crate::merge_sharts;
 
     let dish = vec!["mashed potatoes", "liquor", "pie", "jellied eels"];
     let clone = dish.clone();
@@ -93,8 +93,8 @@ fn lucky_merges() {
     let (rest, right) = clone.split_inplace_at(2);
     let (left, middle) = rest.split_inplace_at(1);
 
-    let eww = merge_shards(middle, right);
-    let new_dish: Vec<_> = merge_shards(left, eww).into();
+    let eww = merge_sharts(middle, right);
+    let new_dish: Vec<_> = merge_sharts(left, eww).into();
     let new_ptr = new_dish.as_ptr();
 
     assert_eq!(dish, new_dish);
@@ -106,34 +106,34 @@ fn lucky_merges() {
 
 #[test]
 fn weird_merges() {
-    use crate::merge_shards;
+    use crate::merge_sharts;
 
     let vec = vec![1, 4, 9, 16, 25, 36, 49, 64];
 
     let (left, right) = vec.clone().split_inplace_at(4);
 
     // merge in reverse order
-    let big = merge_shards(right, left);
+    let big = merge_sharts(right, left);
 
     assert_eq!(*big, [25, 36, 49, 64, 1, 4, 9, 16]);
 
-    // split in three shards
+    // split in three sharts
     let (left, rest) = vec.clone().split_inplace_at(4);
     let (middle, right) = rest.split_inplace_at(2);
 
     // then merge the outer ones together first
-    let outer = merge_shards(left, right);
-    let big = merge_shards(outer, middle);
+    let outer = merge_sharts(left, right);
+    let big = merge_sharts(outer, middle);
 
     assert_eq!(*big, [1, 4, 9, 16, 49, 64, 25, 36]);
 
-    // split in three shards, drop the middle to free the space
+    // split in three sharts, drop the middle to free the space
     let (left, rest) = vec.clone().split_inplace_at(4);
     let (middle, right) = rest.split_inplace_at(2);
     std::mem::drop(middle);
 
     // then merge the outer ones together
-    let outer = merge_shards(left, right);
+    let outer = merge_sharts(left, right);
 
     assert_eq!(*outer, [1, 4, 9, 16, 49, 64]);
 
@@ -143,7 +143,7 @@ fn weird_merges() {
     std::mem::drop(middle);
 
     // but merge in reverse order
-    let outer = merge_shards(right, left);
+    let outer = merge_sharts(right, left);
 
     assert_eq!(*outer, [49, 64, 1, 4, 9, 16]);
 }

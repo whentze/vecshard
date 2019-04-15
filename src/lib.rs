@@ -8,25 +8,25 @@ You could also split it into slices using `Vec::split_at` or
 `Vec::split_at_mut`, but this will not give you owned
 data you can move around or move out of at will.
 
-This crate provides a way to split a [`Vec`] into two owned [`VecShard`]s that
+This crate provides a way to split a [`Vec`] into two owned [`VecShart`]s that
 behave similar to Vecs that takes constant time.
-The catch is that the [`VecShard`]s use reference counting to determine when the last of them is dropped.
+The catch is that the [`VecShart`]s use reference counting to determine when the last of them is dropped.
 Only then is the memory from the original [`Vec`] deallocated.
-The individual items in the shards, however, are dropped as soon as the shard is dropped.
+The individual items in the sharts, however, are dropped as soon as the shart is dropped.
 
-This functionality is provided through an extension trait for [`Vec`], [`ShardExt`](crate::ShardExt).
+This functionality is provided through an extension trait for [`Vec`], [`ShartExt`](crate::ShartExt).
 
 # Basic Example
 
 ```
-use vecshard::ShardExt;
+use vecshart::ShartExt;
 
 let animals = vec!["penguin", "owl", "toucan", "turtle", "spider", "mosquitto"];
 
-// split the vec into 2 shards
+// split the vec into 2 sharts
 let (cool_animals, uncool_animals) = animals.split_inplace_at(4);
 
-// shards can be indexed as usual
+// sharts can be indexed as usual
 assert_eq!(cool_animals[3], "turtle");
 assert_eq!(uncool_animals[0], "spider");
 
@@ -37,7 +37,7 @@ assert_eq!(cool_animals[1..3], ["owl", "toucan"]);
 assert_eq!(cool_animals.len(), 4);
 assert!(uncool_animals.ends_with(&["mosquitto"]));
 
-// shards can also be split up again:
+// sharts can also be split up again:
 let (cool_birds, cool_reptiles) = cool_animals.split_inplace_at(3);
 assert_eq!(*cool_birds, ["penguin", "owl", "toucan"]);
 assert_eq!(*cool_reptiles, ["turtle"]);
@@ -45,37 +45,37 @@ assert_eq!(*cool_reptiles, ["turtle"]);
 
 # Conversion
 
-Shards can be freely converted both [`From`](std::convert::From) and [`Into`](std::convert::Into) Vecs.
-Note that the latter may need to allocate if there are other shards also using the shards allocation.
+Sharts can be freely converted both [`From`](std::convert::From) and [`Into`](std::convert::Into) Vecs.
+Note that the latter may need to allocate if there are other sharts also using the sharts allocation.
 
 ```
-# use vecshard::{VecShard, ShardExt};
+# use vecshart::{VecShart, ShartExt};
 
 let vec = vec![1, 2, 3];
-let shard = VecShard::from(vec);
-let vec2 : Vec<_> = shard.into();
+let shart = VecShart::from(vec);
+let vec2 : Vec<_> = shart.into();
 ```
 
 # Iteration
 
-To iterate over a [`VecShard`], you have several choices.
-[`VecShard<T>`](crate::VecShard) itself is a draining [`Iterator`] and returns owned `T` instances,
+To iterate over a [`VecShart`], you have several choices.
+[`VecShart<T>`](crate::VecShart) itself is a draining [`Iterator`] and returns owned `T` instances,
 removing them from its own storage.
 If you only need `&T` or `&mut T`, you can deref it to a slice and iterate over that.
-Finally, if you need an owning [`Iterator`] but do not want to drain the shard,
-you can [`clone`][std::clone::Clone::clone] the shard and iterate over that.
+Finally, if you need an owning [`Iterator`] but do not want to drain the shart,
+you can [`clone`][std::clone::Clone::clone] the shart and iterate over that.
 
 ```
-# use vecshard::{VecShard, ShardExt};
-let mut shard = VecShard::from(vec!['y', 'e', 'e', 't']);
+# use vecshart::{VecShart, ShartExt};
+let mut shart = VecShart::from(vec!['y', 'e', 'e', 't']);
 
-assert_eq!(Some('y'), shard.next());
-assert_eq!(Some('e'), shard.next());
+assert_eq!(Some('y'), shart.next());
+assert_eq!(Some('e'), shart.next());
 
-assert_eq!(*shard, ['e', 't']);
+assert_eq!(*shart, ['e', 't']);
 ```
 
-[`VecShard`]: crate::VecShard
+[`VecShart`]: crate::VecShart
 */
 
 use std::{
@@ -86,13 +86,13 @@ use std::{
     sync::Arc,
 };
 
-/// An extension trait for things that can be split into shards
+/// An extension trait for things that can be split into sharts
 ///
 /// For your convenience, this is implemented for both [`Vec`](std::vec::Vec) and
-/// [`VecShard`](crate::VecShard), so you can split recursively:
+/// [`VecShart`](crate::VecShart), so you can split recursively:
 ///
 /// ```
-/// # use vecshard::ShardExt;
+/// # use vecshart::ShartExt;
 /// let drinks = vec!["heineken", "jupiler", "turmbräu", "orange juice", "champagne"];
 ///
 /// let (beers, other_drinks) = drinks.split_inplace_at(3);
@@ -100,17 +100,17 @@ use std::{
 ///
 /// assert_eq!(*good_beers, ["turmbräu"]);
 /// ```
-pub trait ShardExt {
-    type Shard;
+pub trait ShartExt {
+    type Shart;
 
-    /// Split this array into two shards at the given index.
+    /// Split this array into two sharts at the given index.
     /// This is an O(1) operation, as it keeps the underlying storage.
     /// In exchange, this means that the memory will not be reclaimed until
-    /// all existing shards using it are dropped.
-    fn split_inplace_at(self, at: usize) -> (Self::Shard, Self::Shard);
+    /// all existing sharts using it are dropped.
+    fn split_inplace_at(self, at: usize) -> (Self::Shart, Self::Shart);
 }
 
-/// The raw guts of a Vec, used to free its allocation when all the shards are gone.
+/// The raw guts of a Vec, used to free its allocation when all the sharts are gone.
 struct VecDropper<T> {
     ptr: *mut T,
     capacity: usize,
@@ -120,19 +120,19 @@ impl<T> Drop for VecDropper<T> {
     fn drop(&mut self) {
         unsafe {
             // Set len to 0 because we only want to free the memory.
-            // Dropping the elements themselves is taken care of by the shards.
+            // Dropping the elements themselves is taken care of by the sharts.
             mem::drop(Vec::from_raw_parts(self.ptr, 0, self.capacity));
         }
     }
 }
 
-/// A shard of a [`Vec<T>`](std::vec::Vec), can be used mostly like a Vec.
+/// A shart of a [`Vec<T>`](std::vec::Vec), can be used mostly like a Vec.
 ///
-/// The major difference is that, when dropped, [`VecShard<T>`](crate::VecShard)
+/// The major difference is that, when dropped, [`VecShart<T>`](crate::VecShart)
 /// will not immediately free its allocated memory.
 /// Instead, it will only drop all its items.
-/// The memory itself will be freed once all VecShards from the Vec are gone.
-pub struct VecShard<T> {
+/// The memory itself will be freed once all VecSharts from the Vec are gone.
+pub struct VecShart<T> {
     dropper: Arc<VecDropper<T>>,
 
     data: *mut T,
@@ -141,10 +141,10 @@ pub struct VecShard<T> {
 
 // These are the same as for Vec<T>
 // Probably sound, since the only thing we share is the Arc
-unsafe impl<T: Send> Send for VecShard<T> {}
-unsafe impl<T: Sync> Sync for VecShard<T> {}
+unsafe impl<T: Send> Send for VecShart<T> {}
+unsafe impl<T: Sync> Sync for VecShart<T> {}
 
-impl<T> VecShard<T> {
+impl<T> VecShart<T> {
     fn into_raw_parts(self) -> (Arc<VecDropper<T>>, *mut T, usize) {
         let dropper = unsafe { ptr::read(&self.dropper as *const Arc<VecDropper<T>>) };
         let data = self.data;
@@ -154,40 +154,40 @@ impl<T> VecShard<T> {
     }
 }
 
-impl<T> ShardExt for VecShard<T> {
-    type Shard = VecShard<T>;
+impl<T> ShartExt for VecShart<T> {
+    type Shart = VecShart<T>;
 
-    fn split_inplace_at(mut self, at: usize) -> (Self::Shard, Self::Shard) {
+    fn split_inplace_at(mut self, at: usize) -> (Self::Shart, Self::Shart) {
         assert!(at <= self.len);
 
-        let right = VecShard {
+        let right = VecShart {
             dropper: self.dropper.clone(),
             data: unsafe { self.data.add(at) },
             len: self.len - at,
         };
 
-        // for the left shard, just cut ourselves down to size
+        // for the left shart, just cut ourselves down to size
         self.len = at;
 
         (self, right)
     }
 }
 
-/// Merge the given shards into a single shard.
+/// Merge the given sharts into a single shart.
 ///
 /// If `left` and `right` are from the same [`Vec`] and directly adjacent
 /// with the end of `left` directly touching the start of `right`,
 /// this will work in O(1) time. Otherwise, it will need to copy things around and possibly allocate
 /// a new Vec
-pub fn merge_shards<T>(left: VecShard<T>, right: VecShard<T>) -> VecShard<T> {
+pub fn merge_sharts<T>(left: VecShart<T>, right: VecShart<T>) -> VecShart<T> {
     let (rdropper, rdata, rlen) = right.into_raw_parts();
     let (ldropper, ldata, llen) = left.into_raw_parts();
 
-    // Are the shards even from the same Vec?
+    // Are the sharts even from the same Vec?
     if Arc::ptr_eq(&ldropper, &rdropper) {
         if unsafe { ldata.add(llen) } == rdata {
             // fast path: left and right can be merged neatly
-            return VecShard {
+            return VecShart {
                 dropper: ldropper,
                 data: ldata,
                 len: llen + rlen,
@@ -230,7 +230,7 @@ pub fn merge_shards<T>(left: VecShard<T>, right: VecShard<T>) -> VecShard<T> {
                     ldata
                 }
             };
-            return VecShard {
+            return VecShart {
                 dropper: ldropper,
                 data: new_data,
                 len: llen + rlen,
@@ -245,10 +245,10 @@ pub fn merge_shards<T>(left: VecShard<T>, right: VecShard<T>) -> VecShard<T> {
         ptr::copy(rdata, vec.as_mut_ptr().add(llen), rlen);
         vec.set_len(llen + rlen);
     }
-    VecShard::from(vec)
+    VecShart::from(vec)
 }
 
-impl<T> Drop for VecShard<T> {
+impl<T> Drop for VecShart<T> {
     fn drop(&mut self) {
         // Drop all the elements
         // The VecDropper will take care of freeing the Vec itself, if needed
@@ -258,7 +258,7 @@ impl<T> Drop for VecShard<T> {
     }
 }
 
-impl<T> Deref for VecShard<T> {
+impl<T> Deref for VecShart<T> {
     type Target = [T];
 
     fn deref(&self) -> &[T] {
@@ -266,13 +266,13 @@ impl<T> Deref for VecShard<T> {
     }
 }
 
-impl<T> DerefMut for VecShard<T> {
+impl<T> DerefMut for VecShart<T> {
     fn deref_mut(&mut self) -> &mut [T] {
         unsafe { slice::from_raw_parts_mut(self.data, self.len) }
     }
 }
 
-impl<T, I: SliceIndex<[T]>> Index<I> for VecShard<T> {
+impl<T, I: SliceIndex<[T]>> Index<I> for VecShart<T> {
     type Output = <I as slice::SliceIndex<[T]>>::Output;
 
     fn index(&self, idx: I) -> &Self::Output {
@@ -280,13 +280,13 @@ impl<T, I: SliceIndex<[T]>> Index<I> for VecShard<T> {
     }
 }
 
-impl<T, I: SliceIndex<[T]>> IndexMut<I> for VecShard<T> {
+impl<T, I: SliceIndex<[T]>> IndexMut<I> for VecShart<T> {
     fn index_mut(&mut self, idx: I) -> &mut Self::Output {
         &mut ((**self)[idx])
     }
 }
 
-impl<T> Iterator for VecShard<T> {
+impl<T> Iterator for VecShart<T> {
     type Item = T;
 
     fn next(&mut self) -> Option<T> {
@@ -301,9 +301,9 @@ impl<T> Iterator for VecShard<T> {
     }
 }
 
-impl<T> From<Vec<T>> for VecShard<T> {
+impl<T> From<Vec<T>> for VecShart<T> {
     fn from(mut v: Vec<T>) -> Self {
-        let res = VecShard {
+        let res = VecShart {
             dropper: Arc::new(VecDropper {
                 ptr: v.as_mut_ptr(),
                 capacity: v.capacity(),
@@ -316,12 +316,12 @@ impl<T> From<Vec<T>> for VecShard<T> {
     }
 }
 
-impl<T> Into<Vec<T>> for VecShard<T> {
+impl<T> Into<Vec<T>> for VecShart<T> {
     fn into(self) -> Vec<T> {
         // First, move everything out of self so we don't drop anything
         let (dropper, data, len) = self.into_raw_parts();
 
-        // Optimization: if this shard is the only one left from the backing Vec, we re-use its allocation
+        // Optimization: if this shart is the only one left from the backing Vec, we re-use its allocation
         if let Ok(dropper) = Arc::try_unwrap(dropper) {
             // If our data is already at the start of the backing Vec, we don't need to move it
             if data != dropper.ptr {
@@ -343,26 +343,26 @@ impl<T> Into<Vec<T>> for VecShard<T> {
     }
 }
 
-impl<T: Clone> Clone for VecShard<T> {
-    fn clone(&self) -> VecShard<T> {
+impl<T: Clone> Clone for VecShart<T> {
+    fn clone(&self) -> VecShart<T> {
         // Not much we can do here, just make a new Vec
         let mut vec = Vec::with_capacity(self.len);
         vec.extend_from_slice(unsafe { slice::from_raw_parts(self.data, self.len) });
-        VecShard::from(vec)
+        VecShart::from(vec)
     }
 }
 
-impl<T: fmt::Debug> fmt::Debug for VecShard<T> {
+impl<T: fmt::Debug> fmt::Debug for VecShart<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{:?}", &**self)
     }
 }
 
-impl<T> ShardExt for Vec<T> {
-    type Shard = VecShard<T>;
+impl<T> ShartExt for Vec<T> {
+    type Shart = VecShart<T>;
 
-    fn split_inplace_at(self, at: usize) -> (Self::Shard, Self::Shard) {
-        VecShard::from(self).split_inplace_at(at)
+    fn split_inplace_at(self, at: usize) -> (Self::Shart, Self::Shart) {
+        VecShart::from(self).split_inplace_at(at)
     }
 }
 
