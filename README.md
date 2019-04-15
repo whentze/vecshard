@@ -4,6 +4,7 @@ Split Vecs in O(1) time.
 
 [![Build Status](https://travis-ci.org/whentze/vecshard.svg?branch=master)](https://travis-ci.org/whentze/vecshard)
 [![Coverage Status](https://coveralls.io/repos/github/whentze/vecshard/badge.svg?branch=master)](https://coveralls.io/github/whentze/vecshard?branch=master)
+[![License: CC0-1.0](https://licensebuttons.net/l/zero/1.0/80x15.png)](http://creativecommons.org/publicdomain/zero/1.0/)
 
 You can split a `Vec` into two using `Vec::split_off`,
 but since most allocators can't just go and split up an allocation, this needs to allocate space
