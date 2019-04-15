@@ -1,7 +1,13 @@
 [package]
 name = "vecshard"
-version = "0.1.0"
-authors = ["whentze <muvlon@hentzes.de>"]
+version = "0.0.1"
+authors = ["muvlon <muvlon@hentzes.de>"]
+description = "Split Vecs in constant time"
+repository = "https://github.com/whentze/vecshard"
+categories = ["algorithms", "data-structures", "memory-management"]
+readme = "README.md"
+license = "GPL-3.0"
+keywords = ["vec", "split", "allocation", "fast"]
 edition = "2018"
 
 [dependencies]
