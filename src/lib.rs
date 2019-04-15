@@ -327,7 +327,7 @@ impl<T> Into<Vec<T>> for VecShard<T> {
             if data != dropper.ptr {
                 unsafe { ptr::copy(data, dropper.ptr, len) };
             }
-            let v = unsafe { Vec::from_raw_parts(data, len, dropper.capacity) };
+            let v = unsafe { Vec::from_raw_parts(dropper.ptr, len, dropper.capacity) };
             // Make sure we don't drop anything that the new Vec will need
             mem::forget(dropper);
             v
