@@ -77,6 +77,3 @@ assert_eq!(Some('e'), shard.next());
 
 assert_eq!(*shard, ['e', 't']);
 ```
-
-
-License: CC0-1.0
