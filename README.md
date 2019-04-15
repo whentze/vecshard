@@ -2,20 +2,20 @@
 
 Split Vecs in O(1) time.
 
-You can split a [`Vec`] into two using [`Vec::split_off`](std::vec::Vec::split_off),
+You can split a `Vec` into two using `Vec::split_off`,
 but since most allocators can't just go and split up an allocation, this needs to allocate space
-for a second [`Vec`] and, even worse, copy the relevant elements over, which takes O(n) time.
+for a second `Vec` and, even worse, copy the relevant elements over, which takes O(n) time.
 You could also split it into slices using `Vec::split_at` or
 `Vec::split_at_mut`, but this will not give you owned
 data you can move around or move out of at will.
 
-This crate provides a way to split a [`Vec`] into two owned [`VecShard`]s that
+This crate provides a way to split a `Vec` into two owned `VecShard`s that
 behave similar to Vecs that takes constant time.
-The catch is that the [`VecShard`]s use reference counting to determine when the last of them is dropped.
-Only then is the memory from the original [`Vec`] deallocated.
+The catch is that the `VecShard`s use reference counting to determine when the last of them is dropped.
+Only then is the memory from the original `Vec` deallocated.
 The individual items in the shards, however, are dropped as soon as the shard is dropped.
 
-This functionality is provided through an extension trait for [`Vec`], [`ShardExt`](crate::ShardExt).
+This functionality is provided through an extension trait for `Vec`, `ShardExt`.
 
 ## Basic Example
 
@@ -46,7 +46,7 @@ assert_eq!(*cool_reptiles, ["turtle"]);
 
 ## Conversion
 
-Shards can be freely converted both [`From`](std::convert::From) and [`Into`](std::convert::Into) Vecs.
+Shards can be freely converted both `From` and `Into` Vecs.
 Note that the latter may need to allocate if there are other shards also using the shards allocation.
 
 ```rust
@@ -58,12 +58,12 @@ let vec2 : Vec<_> = shard.into();
 
 ## Iteration
 
-To iterate over a [`VecShard`], you have several choices.
-[`VecShard<T>`](crate::VecShard) itself is a draining [`Iterator`] and returns owned `T` instances,
+To iterate over a `VecShard`, you have several choices.
+`VecShard<T>` itself is a draining `Iterator` and returns owned `T` instances,
 removing them from its own storage.
 If you only need `&T` or `&mut T`, you can deref it to a slice and iterate over that.
-Finally, if you need an owning [`Iterator`] but do not want to drain the shard,
-you can [`clone`][std::clone::Clone::clone] the shard and iterate over that.
+Finally, if you need an owning `Iterator` but do not want to drain the shard,
+you can `clone` the shard and iterate over that.
 
 ```rust
 let mut shard = VecShard::from(vec!['y', 'e', 'e', 't']);
@@ -74,6 +74,5 @@ assert_eq!(Some('e'), shard.next());
 assert_eq!(*shard, ['e', 't']);
 ```
 
-[`VecShard`]: crate::VecShard
 
 License: CC0-1.0
