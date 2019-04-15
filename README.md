@@ -2,6 +2,8 @@
 
 Split Vecs in O(1) time.
 
+[![Build Status](https://travis-ci.org/whentze/vecshard.svg?branch=master)](https://travis-ci.org/whentze/vecshard)
+
 You can split a `Vec` into two using `Vec::split_off`,
 but since most allocators can't just go and split up an allocation, this needs to allocate space
 for a second `Vec` and, even worse, copy the relevant elements over, which takes O(n) time.
