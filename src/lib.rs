@@ -335,7 +335,7 @@ impl<T> Into<Vec<T>> for VecShard<T> {
             // Otherwise, just allocate a new Vec
             let mut v = Vec::with_capacity(len);
             unsafe {
-                ptr::copy(data, v.as_mut_ptr(), len);
+                ptr::copy_nonoverlapping(data, v.as_mut_ptr(), len);
                 v.set_len(len);
             };
             v
