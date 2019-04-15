@@ -76,4 +76,4 @@ assert_eq!(*shard, ['e', 't']);
 
 [`VecShard`]: crate::VecShard
 
-License: GPL-3.0
+License: CC0-1.0

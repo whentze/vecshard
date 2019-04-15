@@ -6,7 +6,8 @@ description = "Split Vecs in constant time"
 repository = "https://github.com/whentze/vecshard"
 categories = ["algorithms", "data-structures", "memory-management"]
 readme = "README.md"
-license = "GPL-3.0"
+license = "CC0-1.0"
+license-file = "LICENSE"
 keywords = ["vec", "split", "allocation", "fast"]
 edition = "2018"
 
