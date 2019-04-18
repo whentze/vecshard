@@ -1,4 +1,4 @@
-use crate::{ShardExt, VecShard};
+use vecshard::{ShardExt, VecShard, merge_shards};
 
 #[test]
 fn deref() {
@@ -68,7 +68,7 @@ fn clone_works() {
     let (left, _) = vec.split_inplace_at(3);
 
     assert_eq!(*left, *(left.clone()));
-    assert_eq!(*left, [1,2,6]);
+    assert_eq!(*left, [1, 2, 6]);
 }
 
 #[test]
@@ -84,8 +84,6 @@ fn debug_looks_ok() {
 
 #[test]
 fn lucky_merges() {
-    use crate::merge_shards;
-
     let dish = vec!["mashed potatoes", "liquor", "pie", "jellied eels"];
     let clone = dish.clone();
     let old_ptr = clone.as_ptr();
@@ -106,8 +104,6 @@ fn lucky_merges() {
 
 #[test]
 fn weird_merges() {
-    use crate::merge_shards;
-
     let vec = vec![1, 4, 9, 16, 25, 36, 49, 64];
 
     let (left, right) = vec.clone().split_inplace_at(4);

@@ -365,6 +365,3 @@ impl<T> ShardExt for Vec<T> {
         VecShard::from(self).split_inplace_at(at)
     }
 }
-
-#[cfg(test)]
-mod test;
