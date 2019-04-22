@@ -10,8 +10,6 @@ license = "CC0-1.0"
 keywords = ["vec", "split", "allocation", "fast"]
 edition = "2018"
 
-[dependencies]
-
 [badges]
 travis-ci = { repository = "whentze/vecshard" }
 coveralls = { repository = "whentze/vecshard" }
