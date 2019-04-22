@@ -1,4 +1,4 @@
-use vecshard::{ShardExt, VecShard, merge_shards};
+use vecshard::{ShardExt, VecShard};
 
 #[test]
 fn deref() {
@@ -12,7 +12,7 @@ fn deref() {
     right[1] = 8;
     right[2] = 13;
 
-    let fib = crate::merge_shards(left, right);
+    let fib = VecShard::merge(left, right);
     assert_eq!(*fib, [1, 2, 3, 5, 8, 13]);
 }
 
@@ -91,8 +91,8 @@ fn lucky_merges() {
     let (rest, right) = clone.split_inplace_at(2);
     let (left, middle) = rest.split_inplace_at(1);
 
-    let eww = merge_shards(middle, right);
-    let new_dish: Vec<_> = merge_shards(left, eww).into();
+    let eww = VecShard::merge_inplace(middle, right).unwrap();
+    let new_dish: Vec<_> = VecShard::merge_inplace(left, eww).unwrap().into();
     let new_ptr = new_dish.as_ptr();
 
     assert_eq!(dish, new_dish);
@@ -109,7 +109,7 @@ fn weird_merges() {
     let (left, right) = vec.clone().split_inplace_at(4);
 
     // merge in reverse order
-    let big = merge_shards(right, left);
+    let big = VecShard::merge(right, left);
 
     assert_eq!(*big, [25, 36, 49, 64, 1, 4, 9, 16]);
 
@@ -118,8 +118,8 @@ fn weird_merges() {
     let (middle, right) = rest.split_inplace_at(2);
 
     // then merge the outer ones together first
-    let outer = merge_shards(left, right);
-    let big = merge_shards(outer, middle);
+    let outer = VecShard::merge(left, right);
+    let big = VecShard::merge(outer, middle);
 
     assert_eq!(*big, [1, 4, 9, 16, 49, 64, 25, 36]);
 
@@ -129,7 +129,7 @@ fn weird_merges() {
     std::mem::drop(middle);
 
     // then merge the outer ones together
-    let outer = merge_shards(left, right);
+    let outer = VecShard::merge(left, right);
 
     assert_eq!(*outer, [1, 4, 9, 16, 49, 64]);
 
@@ -139,7 +139,7 @@ fn weird_merges() {
     std::mem::drop(middle);
 
     // but merge in reverse order
-    let outer = merge_shards(right, left);
+    let outer = VecShard::merge(right, left);
 
     assert_eq!(*outer, [49, 64, 1, 4, 9, 16]);
 }

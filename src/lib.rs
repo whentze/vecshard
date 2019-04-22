@@ -86,6 +86,9 @@ use std::{
     sync::Arc,
 };
 
+pub mod error;
+use crate::error::WouldMove;
+
 /// An extension trait for things that can be split into shards
 ///
 /// For your convenience, this is implemented for both [`Vec`](std::vec::Vec) and
@@ -152,6 +155,123 @@ impl<T> VecShard<T> {
         mem::forget(self);
         (dropper, data, len)
     }
+
+    /// Try to merge the given shards without moving them around.
+    ///
+    /// This can only succeed if `left` and `right` were split off from the same Vec
+    /// and are directly adjacent to each other.
+    /// Furthermore, `right` needs to be at a higher address than left so the elements stay in the right order.
+    ///
+    /// Returns the merged shard on success and an `Err` otherwise.
+    ///
+    /// This function will always run in O(1) time.
+    pub fn merge_inplace(left: Self, right: Self) -> Result<Self, WouldMove> {
+        let (ldropper, ldata, llen) = left.into_raw_parts();
+        let (rdropper, rdata, rlen) = right.into_raw_parts();
+        use WouldMove::*;
+        // Are the shards even from the same Vec?
+        if !Arc::ptr_eq(&ldropper, &rdropper) {
+            return Err(DifferentAllocations(
+                ldropper.ptr as usize,
+                rdropper.ptr as usize,
+            ));
+        }
+
+        if unsafe { ldata.add(llen) } == rdata {
+            Ok(VecShard {
+                dropper: ldropper,
+                data: ldata,
+                len: llen + rlen,
+            })
+        } else if rdata <= ldata {
+            Err(WrongOrder)
+        } else {
+            Err(NotAdjacent(ldata as usize + llen, rdata as usize))
+        }
+    }
+
+    /// Merge the given shards into a single shard.
+    ///
+    /// This will attempt an O(1) merge like `merge_inplace` but fall back to copying slices around
+    /// within their allocation and possibly allocating a new Vec if needed.
+    pub fn merge(left: Self, right: Self) -> Self {
+        let (rdropper, rdata, rlen) = right.into_raw_parts();
+        let (ldropper, ldata, llen) = left.into_raw_parts();
+
+        // Are the shards even from the same Vec?
+        if Arc::ptr_eq(&ldropper, &rdropper) {
+            if unsafe { ldata.add(llen) } == rdata {
+                // fast path: left and right can be merged neatly
+                return VecShard {
+                    dropper: ldropper,
+                    data: ldata,
+                    len: llen + rlen,
+                };
+            }
+
+            if unsafe { rdata.add(rlen) } == ldata {
+                // semi-fast path: we only need to rotate
+                unsafe { slice::from_raw_parts_mut(rdata, llen + rlen).rotate_left(rlen) };
+                return VecShard {
+                    dropper: ldropper,
+                    data: rdata,
+                    len: llen + rlen,
+                };
+            }
+
+            // Drop the other Arc right away so we have
+            // a chance that left holds the last Arc
+            mem::drop(rdropper);
+
+            // If left is now the last Arc, we can re-use the allocation
+            if Arc::strong_count(&ldropper) == 1 {
+                let new_data = unsafe {
+                    if rdata < ldata {
+                        // If right is actually on the left side, we have to shuffle things around
+                        if llen < rlen {
+                            //  ...  |---------- r ----------| ... |------ l ------|
+                            std::ptr::swap_nonoverlapping(rdata, ldata, llen);
+                            //  ...  |------ l ------|- ..r -| ... |----- r.. -----|
+                            std::ptr::copy(ldata, rdata.add(rlen), llen);
+                            //  ...  |------ l ------|- ..r -|----- r.. -----|  ...
+                            std::slice::from_raw_parts_mut(rdata.add(llen), rlen)
+                                .rotate_left(rlen - llen);
+                        //      ...  |------ l ------|---------- r ----------|  ...
+                        } else {
+                            //  ...  |------ r ------| ... |---------- l ----------|
+                            std::ptr::swap_nonoverlapping(rdata, ldata, rlen);
+                            //  ...  |----- l.. -----| ... |------ r ------|- ..l -|
+                            std::slice::from_raw_parts_mut(ldata, llen).rotate_left(rlen);
+                            //  ...  |----- l.. -----| ... |- ..l -|------ r ------|
+                            std::ptr::copy(ldata, rdata.add(rlen), llen);
+                            //  ...  |---------- l ----------|------ r ------|  ...
+                        };
+                        rdata
+                    } else {
+                        // Otherwise, just scootch it over
+                        //  ...  |---------- l ----------|    ...  |------ r ------|
+                        std::ptr::copy(rdata, ldata.add(llen), rlen);
+                        //  ...  |---------- l ----------|------ r ------|   ...
+                        ldata
+                    }
+                };
+                return VecShard {
+                    dropper: ldropper,
+                    data: new_data,
+                    len: llen + rlen,
+                };
+            }
+        }
+
+        // Give up and allocate
+        let mut vec = Vec::with_capacity(llen + rlen);
+        unsafe {
+            ptr::copy(ldata, vec.as_mut_ptr(), llen);
+            ptr::copy(rdata, vec.as_mut_ptr().add(llen), rlen);
+            vec.set_len(llen + rlen);
+        }
+        Self::from(vec)
+    }
 }
 
 impl<T> ShardExt for VecShard<T> {
@@ -171,92 +291,6 @@ impl<T> ShardExt for VecShard<T> {
 
         (self, right)
     }
-}
-
-/// Merge the given shards into a single shard.
-///
-/// If `left` and `right` are from the same [`Vec`] and directly adjacent
-/// with the end of `left` directly touching the start of `right`,
-/// this will work in O(1) time. Otherwise, it will need to copy things around and possibly allocate
-/// a new Vec
-pub fn merge_shards<T>(left: VecShard<T>, right: VecShard<T>) -> VecShard<T> {
-    let (rdropper, rdata, rlen) = right.into_raw_parts();
-    let (ldropper, ldata, llen) = left.into_raw_parts();
-
-    // Are the shards even from the same Vec?
-    if Arc::ptr_eq(&ldropper, &rdropper) {
-        if unsafe { ldata.add(llen) } == rdata {
-            // fast path: left and right can be merged neatly
-            return VecShard {
-                dropper: ldropper,
-                data: ldata,
-                len: llen + rlen,
-            };
-        }
-
-        if unsafe { rdata.add(rlen) } == ldata {
-            // semi-fast path: we only need to rotate
-            unsafe { slice::from_raw_parts_mut(rdata, llen+rlen)
-                            .rotate_left(rlen) };
-            return VecShard {
-                dropper: ldropper,
-                data: rdata,
-                len: llen + rlen,
-            };
-        }
-
-        // Drop the other Arc right away so we have
-        // a chance that left holds the last Arc
-        mem::drop(rdropper);
-
-        // If left is now the last Arc, we can re-use the allocation
-        if Arc::strong_count(&ldropper) == 1 {
-            let new_data = unsafe {
-                if rdata < ldata {
-                    // If right is actually on the left side, we have to shuffle things around
-                    if llen < rlen {
-                        //  ...  |---------- r ----------| ... |------ l ------|
-                        std::ptr::swap_nonoverlapping(rdata, ldata, llen);
-                        //  ...  |------ l ------|- ..r -| ... |----- r.. -----|
-                        std::ptr::copy(ldata, rdata.add(rlen), llen);
-                        //  ...  |------ l ------|- ..r -|----- r.. -----|  ...
-                        std::slice::from_raw_parts_mut(rdata.add(llen), rlen)
-                            .rotate_left(rlen - llen);
-                    //      ...  |------ l ------|---------- r ----------|  ...
-                    } else {
-                        //  ...  |------ r ------| ... |---------- l ----------|
-                        std::ptr::swap_nonoverlapping(rdata, ldata, rlen);
-                        //  ...  |----- l.. -----| ... |------ r ------|- ..l -|
-                        std::slice::from_raw_parts_mut(ldata, llen).rotate_left(rlen);
-                        //  ...  |----- l.. -----| ... |- ..l -|------ r ------|
-                        std::ptr::copy(ldata, rdata.add(rlen), llen);
-                        //  ...  |---------- l ----------|------ r ------|  ...
-                    };
-                    rdata
-                } else {
-                    // Otherwise, just scootch it over
-                    //  ...  |---------- l ----------|    ...  |------ r ------|
-                    std::ptr::copy(rdata, ldata.add(llen), rlen);
-                    //  ...  |---------- l ----------|------ r ------|   ...
-                    ldata
-                }
-            };
-            return VecShard {
-                dropper: ldropper,
-                data: new_data,
-                len: llen + rlen,
-            };
-        }
-    }
-
-    // Give up and allocate
-    let mut vec = Vec::with_capacity(llen + rlen);
-    unsafe {
-        ptr::copy(ldata, vec.as_mut_ptr(), llen);
-        ptr::copy(rdata, vec.as_mut_ptr().add(llen), rlen);
-        vec.set_len(llen + rlen);
-    }
-    VecShard::from(vec)
 }
 
 impl<T> Drop for VecShard<T> {
