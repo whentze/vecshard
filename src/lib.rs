@@ -230,27 +230,27 @@ impl<T> VecShard<T> {
                         // If right is actually on the left side, we have to shuffle things around
                         if llen < rlen {
                             //  ...  |---------- r ----------| ... |------ l ------|
-                            std::ptr::swap_nonoverlapping(rdata, ldata, llen);
+                            ptr::swap_nonoverlapping(rdata, ldata, llen);
                             //  ...  |------ l ------|- ..r -| ... |----- r.. -----|
-                            std::ptr::copy(ldata, rdata.add(rlen), llen);
+                            ptr::copy(ldata, rdata.add(rlen), llen);
                             //  ...  |------ l ------|- ..r -|----- r.. -----|  ...
-                            std::slice::from_raw_parts_mut(rdata.add(llen), rlen)
+                            slice::from_raw_parts_mut(rdata.add(llen), rlen)
                                 .rotate_left(rlen - llen);
                         //      ...  |------ l ------|---------- r ----------|  ...
                         } else {
                             //  ...  |------ r ------| ... |---------- l ----------|
-                            std::ptr::swap_nonoverlapping(rdata, ldata, rlen);
+                            ptr::swap_nonoverlapping(rdata, ldata, rlen);
                             //  ...  |----- l.. -----| ... |------ r ------|- ..l -|
-                            std::slice::from_raw_parts_mut(ldata, llen).rotate_left(rlen);
+                            slice::from_raw_parts_mut(ldata, llen).rotate_left(rlen);
                             //  ...  |----- l.. -----| ... |- ..l -|------ r ------|
-                            std::ptr::copy(ldata, rdata.add(rlen), llen);
+                            ptr::copy(ldata, rdata.add(rlen), llen);
                             //  ...  |---------- l ----------|------ r ------|  ...
                         };
                         rdata
                     } else {
                         // Otherwise, just scootch it over
                         //  ...  |---------- l ----------|    ...  |------ r ------|
-                        std::ptr::copy(rdata, ldata.add(llen), rlen);
+                        ptr::copy(rdata, ldata.add(llen), rlen);
                         //  ...  |---------- l ----------|------ r ------|   ...
                         ldata
                     }
