@@ -194,6 +194,17 @@ pub fn merge_shards<T>(left: VecShard<T>, right: VecShard<T>) -> VecShard<T> {
             };
         }
 
+        if unsafe { rdata.add(rlen) } == ldata {
+            // semi-fast path: we only need to rotate
+            unsafe { slice::from_raw_parts_mut(rdata, llen+rlen)
+                            .rotate_left(rlen) };
+            return VecShard {
+                dropper: ldropper,
+                data: rdata,
+                len: llen + rlen,
+            };
+        }
+
         // Drop the other Arc right away so we have
         // a chance that left holds the last Arc
         mem::drop(rdropper);
