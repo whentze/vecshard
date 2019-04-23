@@ -103,6 +103,41 @@ fn lucky_merges() {
 }
 
 #[test]
+fn unlucky_merges() {
+    use vecshard::error::{CantMerge, WouldMove::*};
+
+    let vec = vec![1, 3, 6, 10, 15, 21, 28, 36];
+
+    let (left, rest) = vec.clone().split_inplace_at(4);
+    let (middle, right) = rest.split_inplace_at(2);
+
+    let CantMerge {
+        left: right,
+        right: middle,
+        reason,
+    } = VecShard::merge_inplace(right, middle).unwrap_err();
+
+    assert_eq!(reason, WrongOrder);
+
+    let CantMerge {
+        right: left,
+        reason,
+        ..
+    } = VecShard::merge_inplace(middle, left).unwrap_err();
+
+    assert_eq!(reason, WrongOrder);
+
+    let CantMerge { left, reason, .. } = VecShard::merge_inplace(left, right).unwrap_err();
+
+    assert_eq!(reason, NotAdjacent);
+
+    let different = VecShard::from(vec![4, 5, 2, 5, 7]);
+
+    let CantMerge { reason, .. } = VecShard::merge_inplace(left, different).unwrap_err();
+    assert_eq!(reason, DifferentAllocations);
+}
+
+#[test]
 fn weird_merges() {
     let vec = vec![1, 4, 9, 16, 25, 36, 49, 64];
 
