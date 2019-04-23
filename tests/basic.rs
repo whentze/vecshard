@@ -177,4 +177,13 @@ fn weird_merges() {
     let outer = VecShard::merge(right, left);
 
     assert_eq!(*outer, [49, 64, 1, 4, 9, 16]);
+
+    // same as before, but split right off first
+    let (rest, right) = vec.clone().split_inplace_at(4);
+    let (left, middle) = rest.split_inplace_at(2);
+    std::mem::drop(middle);
+
+    let outer = VecShard::merge(right, left);
+
+    assert_eq!(*outer, [25, 36, 49, 64, 1, 4]);
 }
