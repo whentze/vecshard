@@ -87,7 +87,7 @@ use std::{
 };
 
 pub mod error;
-use crate::error::WouldMove;
+use crate::error::{CantMerge, WouldMove};
 
 /// An extension trait for things that can be split into shards
 ///
@@ -165,28 +165,36 @@ impl<T> VecShard<T> {
     /// Returns the merged shard on success and an `Err` otherwise.
     ///
     /// This function will always run in O(1) time.
-    pub fn merge_inplace(left: Self, right: Self) -> Result<Self, WouldMove> {
-        let (ldropper, ldata, llen) = left.into_raw_parts();
-        let (rdropper, rdata, rlen) = right.into_raw_parts();
+    pub fn merge_inplace(left: Self, right: Self) -> Result<Self, CantMerge<Self, WouldMove>> {
         use WouldMove::*;
         // Are the shards even from the same Vec?
-        if !Arc::ptr_eq(&ldropper, &rdropper) {
-            return Err(DifferentAllocations(
-                ldropper.ptr as usize,
-                rdropper.ptr as usize,
-            ));
-        }
-
-        if unsafe { ldata.add(llen) } == rdata {
+        if !Arc::ptr_eq(&left.dropper, &right.dropper) {
+            Err(CantMerge {
+                reason: DifferentAllocations,
+                left,
+                right,
+            })
+        } else if unsafe { left.data.add(left.len) } == right.data {
+            let (ldropper, ldata, llen) = left.into_raw_parts();
+            let (rdropper, _, rlen) = right.into_raw_parts();
+            std::mem::drop(rdropper);
             Ok(VecShard {
                 dropper: ldropper,
                 data: ldata,
                 len: llen + rlen,
             })
-        } else if rdata <= ldata {
-            Err(WrongOrder)
+        } else if unsafe { right.data.add(right.len) } == left.data {
+            Err(CantMerge {
+                left,
+                right,
+                reason: WrongOrder,
+            })
         } else {
-            Err(NotAdjacent(ldata as usize + llen, rdata as usize))
+            Err(CantMerge {
+                reason: NotAdjacent,
+                left,
+                right,
+            })
         }
     }
 
@@ -195,82 +203,73 @@ impl<T> VecShard<T> {
     /// This will attempt an O(1) merge like `merge_inplace` but fall back to copying slices around
     /// within their allocation and possibly allocating a new Vec if needed.
     pub fn merge(left: Self, right: Self) -> Self {
-        let (rdropper, rdata, rlen) = right.into_raw_parts();
-        let (ldropper, ldata, llen) = left.into_raw_parts();
+        use WouldMove::*;
 
-        // Are the shards even from the same Vec?
-        if Arc::ptr_eq(&ldropper, &rdropper) {
-            if unsafe { ldata.add(llen) } == rdata {
-                // fast path: left and right can be merged neatly
-                return VecShard {
-                    dropper: ldropper,
-                    data: ldata,
-                    len: llen + rlen,
-                };
+        let cant_merge = match Self::merge_inplace(left, right) {
+            // happy path
+            Ok(shard) => return shard,
+            Err(err) => err,
+        };
+
+        let (ldropper, ldata, llen) = cant_merge.left.into_raw_parts();
+        let (_rdropper, rdata, rlen) = cant_merge.right.into_raw_parts();
+
+        if cant_merge.reason == WrongOrder {
+            // semi-fast path: we only need to rotate
+            unsafe { slice::from_raw_parts_mut(rdata, llen + rlen).rotate_left(rlen) };
+            VecShard {
+                dropper: ldropper,
+                data: rdata,
+                len: llen + rlen,
             }
+        } else if cant_merge.reason == NotAdjacent && Arc::strong_count(&ldropper) == 2 {
+            // There are only 2 references to the dropper left,
+            // and we're holding ldropper and rdropper, so we can freely re-use the allocation
 
-            if unsafe { rdata.add(rlen) } == ldata {
-                // semi-fast path: we only need to rotate
-                unsafe { slice::from_raw_parts_mut(rdata, llen + rlen).rotate_left(rlen) };
-                return VecShard {
-                    dropper: ldropper,
-                    data: rdata,
-                    len: llen + rlen,
-                };
-            }
-
-            // Drop the other Arc right away so we have
-            // a chance that left holds the last Arc
-            mem::drop(rdropper);
-
-            // If left is now the last Arc, we can re-use the allocation
-            if Arc::strong_count(&ldropper) == 1 {
-                let new_data = unsafe {
-                    if rdata < ldata {
-                        // If right is actually on the left side, we have to shuffle things around
-                        if llen < rlen {
-                            //  ...  |---------- r ----------| ... |------ l ------|
-                            ptr::swap_nonoverlapping(rdata, ldata, llen);
-                            //  ...  |------ l ------|- ..r -| ... |----- r.. -----|
-                            ptr::copy(ldata, rdata.add(rlen), llen);
-                            //  ...  |------ l ------|- ..r -|----- r.. -----|  ...
-                            slice::from_raw_parts_mut(rdata.add(llen), rlen)
-                                .rotate_left(rlen - llen);
-                        //      ...  |------ l ------|---------- r ----------|  ...
-                        } else {
-                            //  ...  |------ r ------| ... |---------- l ----------|
-                            ptr::swap_nonoverlapping(rdata, ldata, rlen);
-                            //  ...  |----- l.. -----| ... |------ r ------|- ..l -|
-                            slice::from_raw_parts_mut(ldata, llen).rotate_left(rlen);
-                            //  ...  |----- l.. -----| ... |- ..l -|------ r ------|
-                            ptr::copy(ldata, rdata.add(rlen), llen);
-                            //  ...  |---------- l ----------|------ r ------|  ...
-                        };
-                        rdata
+            let new_data = unsafe {
+                if rdata < ldata {
+                    // If right is actually on the left side, we have to shuffle things around
+                    if llen < rlen {
+                        //  ...  |---------- r ----------| ... |------ l ------|
+                        ptr::swap_nonoverlapping(rdata, ldata, llen);
+                        //  ...  |------ l ------|- ..r -| ... |----- r.. -----|
+                        ptr::copy(ldata, rdata.add(rlen), llen);
+                        //  ...  |------ l ------|- ..r -|----- r.. -----|  ...
+                        slice::from_raw_parts_mut(rdata.add(llen), rlen).rotate_left(rlen - llen);
+                    //      ...  |------ l ------|---------- r ----------|  ...
                     } else {
-                        // Otherwise, just scootch it over
-                        //  ...  |---------- l ----------|    ...  |------ r ------|
-                        ptr::copy(rdata, ldata.add(llen), rlen);
-                        //  ...  |---------- l ----------|------ r ------|   ...
-                        ldata
-                    }
-                };
-                return VecShard {
-                    dropper: ldropper,
-                    data: new_data,
-                    len: llen + rlen,
-                };
+                        //  ...  |------ r ------| ... |---------- l ----------|
+                        ptr::swap_nonoverlapping(rdata, ldata, rlen);
+                        //  ...  |----- l.. -----| ... |------ r ------|- ..l -|
+                        slice::from_raw_parts_mut(ldata, llen).rotate_left(rlen);
+                        //  ...  |----- l.. -----| ... |- ..l -|------ r ------|
+                        ptr::copy(ldata, rdata.add(rlen), llen);
+                        //  ...  |---------- l ----------|------ r ------|  ...
+                    };
+                    rdata
+                } else {
+                    // Otherwise, just scootch it over
+                    //  ...  |---------- l ----------|    ...  |------ r ------|
+                    ptr::copy(rdata, ldata.add(llen), rlen);
+                    //  ...  |---------- l ----------|------ r ------|   ...
+                    ldata
+                }
+            };
+            VecShard {
+                data: new_data,
+                len: llen + rlen,
+                dropper: ldropper,
             }
+        } else {
+            // Give up and allocate
+            let mut vec = Vec::with_capacity(llen + rlen);
+            unsafe {
+                ptr::copy(ldata, vec.as_mut_ptr(), llen);
+                ptr::copy(rdata, vec.as_mut_ptr().add(llen), rlen);
+                vec.set_len(llen + rlen);
+            }
+            Self::from(vec)
         }
-
-        // Give up and allocate
-        let mut vec = Vec::with_capacity(llen + rlen);
-        unsafe {
-            ptr::copy(ldata, vec.as_mut_ptr(), llen);
-            ptr::copy(rdata, vec.as_mut_ptr().add(llen), rlen);
-            vec.set_len(llen + rlen);
-        }
-        Self::from(vec)
     }
 }
 
