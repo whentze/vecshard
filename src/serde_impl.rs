@@ -1,6 +1,9 @@
 use crate::VecShard;
 
-use serde::{ser::{Serialize, Serializer, SerializeSeq}, de::{Deserialize, Deserializer}};
+use serde::{
+    de::{Deserialize, Deserializer},
+    ser::{Serialize, SerializeSeq, Serializer},
+};
 
 impl<T> Serialize for VecShard<T>
 where

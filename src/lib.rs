@@ -90,7 +90,7 @@ version = "0.2.0"
 */
 
 use std::{
-    cmp::{PartialEq, Eq},
+    cmp::{Eq, PartialEq},
     fmt,
     hash::{Hash, Hasher},
     iter::FusedIterator,
@@ -385,13 +385,13 @@ impl<T, I: SliceIndex<[T]>> IndexMut<I> for VecShard<T> {
     }
 }
 
-impl<T : PartialEq> PartialEq for VecShard<T> {
+impl<T: PartialEq> PartialEq for VecShard<T> {
     fn eq(&self, rhs: &Self) -> bool {
         **self == **rhs
     }
 }
 
-impl<T : Eq> Eq for VecShard<T> {}
+impl<T: Eq> Eq for VecShard<T> {}
 
 impl<T> Iterator for VecShard<T> {
     type Item = T;
