@@ -79,7 +79,9 @@ assert_eq!(*shard, ['e', 't']);
 */
 
 use std::{
-    fmt, mem,
+    fmt,
+    iter::FusedIterator,
+    mem,
     ops::{Deref, DerefMut, Index, IndexMut},
     ptr,
     slice::{self, SliceIndex},
@@ -344,6 +346,25 @@ impl<T> Iterator for VecShard<T> {
         }
     }
 }
+
+impl<T> ExactSizeIterator for VecShard<T> {
+    fn len(&self) -> usize {
+        self.len
+    }
+}
+
+impl<T> DoubleEndedIterator for VecShard<T> {
+    fn next_back(&mut self) -> Option<T> {
+        if self.len > 0 {
+            self.len -= 1;
+            Some(unsafe { self.data.add(self.len).read() })
+        } else {
+            None
+        }
+    }
+}
+
+impl<T> FusedIterator for VecShard<T> {}
 
 impl<T> From<Vec<T>> for VecShard<T> {
     fn from(mut v: Vec<T>) -> Self {

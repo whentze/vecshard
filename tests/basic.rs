@@ -187,3 +187,15 @@ fn weird_merges() {
 
     assert_eq!(*outer, [25, 36, 49, 64, 1, 4]);
 }
+
+#[test]
+fn backwards_iteration() {
+    let mut shard = VecShard::from(vec![0, 1, 2, 3, 4]);
+
+    assert_eq!(shard.next(), Some(0));
+    assert_eq!(shard.next_back(), Some(4));
+    assert_eq!(shard.next_back(), Some(3));
+    assert_eq!(shard.next(), Some(1));
+    assert_eq!(shard.next_back(), Some(2));
+    assert_eq!(shard.next_back(), None);
+}
