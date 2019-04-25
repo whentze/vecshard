@@ -256,3 +256,18 @@ fn lens_match_up() {
         assert_eq!(shard.len(), shard.size_hint().1.unwrap());
     }
 }
+
+#[test]
+fn zst_elements() {
+    let (mut left, mut right) = vec![(); 30].split_inplace_at(15);
+
+    assert_eq!(left.len(), 15);
+    assert_eq!(left[13], ());
+    assert_eq!(right[4], ());
+    assert_eq!(left, right);
+    assert_eq!(left.next(), Some(()));
+    assert_eq!(right.next_back(), Some(()));
+
+    let all = VecShard::merge_inplace(left, right).unwrap();
+    assert_eq!(*all, [(); 28]);
+}
