@@ -261,22 +261,19 @@ impl<T> VecShard<T> {
                     // If right is actually on the left side, we have to shuffle things around
                     if llen < rlen {
                         //  ...  |---------- r ----------| ... |------ l ------|
-                        ptr::swap_nonoverlapping(rdata, ldata, llen);
-                        //  ...  |------ l ------|- ..r -| ... |----- r.. -----|
                         ptr::copy(ldata, rdata.add(rlen), llen);
-                        //  ...  |------ l ------|- ..r -|----- r.. -----|  ...
-                        slice::from_raw_parts_mut(rdata.add(llen), rlen).rotate_left(rlen - llen);
-                    //      ...  |------ l ------|---------- r ----------|  ...
+                        //  ...  |---------- r ----------|------ l ------|  ...
+                        slice::from_raw_parts_mut(rdata, rlen+llen).rotate_left(rlen);
+                        //  ...  |------ l ------|---------- r ----------|  ...
+                        rdata
                     } else {
                         //  ...  |------ r ------| ... |---------- l ----------|
-                        ptr::swap_nonoverlapping(rdata, ldata, rlen);
-                        //  ...  |----- l.. -----| ... |------ r ------|- ..l -|
-                        slice::from_raw_parts_mut(ldata, llen).rotate_left(rlen);
-                        //  ...  |----- l.. -----| ... |- ..l -|------ r ------|
-                        ptr::copy(ldata, rdata.add(rlen), llen);
-                        //  ...  |---------- l ----------|------ r ------|  ...
-                    };
-                    rdata
+                        ptr::copy(rdata, ldata.sub(rlen), rlen);
+                        //  ...   ...  |------ r ------|---------- l ----------|
+                        slice::from_raw_parts_mut(ldata.sub(rlen), rlen+llen).rotate_left(rlen);
+                        //  ...   ...  |---------- l ----------|------ r ------|
+                        ldata.sub(rlen)
+                    }
                 } else {
                     // Otherwise, just scootch it over
                     //  ...  |---------- l ----------|    ...  |------ r ------|
