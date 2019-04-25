@@ -92,6 +92,7 @@ version = "0.2.0"
 use std::{
     cmp::{PartialEq, Eq},
     fmt,
+    hash::{Hash, Hasher},
     iter::FusedIterator,
     mem,
     ops::{Deref, DerefMut, Index, IndexMut},
@@ -429,6 +430,12 @@ impl<T> DoubleEndedIterator for VecShard<T> {
 }
 
 impl<T> FusedIterator for VecShard<T> {}
+
+impl<T: Hash> Hash for VecShard<T> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        Hash::hash(&**self, state)
+    }
+}
 
 impl<T> From<Vec<T>> for VecShard<T> {
     fn from(mut v: Vec<T>) -> Self {

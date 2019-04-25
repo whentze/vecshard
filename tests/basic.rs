@@ -72,6 +72,24 @@ fn clone_works() {
 }
 
 #[test]
+fn hash_works() {
+    use std::hash::{Hash, Hasher};
+    use std::collections::hash_map::DefaultHasher;
+
+    fn get_hash<T: Hash>(t: &T) -> u64 {
+        let mut s = DefaultHasher::new();
+        t.hash(&mut s);
+        s.finish()
+    }
+
+    let vec = vec![1, 8, 7];
+    let (left, right) = vec.split_inplace_at(1);
+
+    assert!(get_hash(&left) != get_hash(&right));
+    assert_eq!(get_hash(&right), get_hash(&VecShard::from(vec![8, 7])));
+}
+
+#[test]
 fn debug_looks_ok() {
     use std::fmt::Write;
     let shard = VecShard::from(vec![1, 3, 1, 2]);
