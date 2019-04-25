@@ -13,3 +13,10 @@ edition = "2018"
 [badges]
 travis-ci = { repository = "whentze/vecshard" }
 coveralls = { repository = "whentze/vecshard" }
+
+[dev-dependencies]
+criterion = "0.2.11"
+
+[[bench]]
+name = "criterion"
+harness = false
