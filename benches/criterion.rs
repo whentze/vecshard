@@ -154,5 +154,202 @@ fn iterate(c: &mut Criterion) {
     );
 }
 
-criterion_group!(benches, split, index, merge, iterate);
-criterion_main!(benches);
+fn merge_patterns(c: &mut Criterion) {
+    c.bench(
+        "merge_patterns",
+        ParameterizedBenchmark::new(
+            "llrr",
+            |b, &&size| {
+                b.iter_batched(
+                    || vec![0u8; size].split_inplace_at(size / 2),
+                    |(left, right)| VecShard::merge(left, right),
+                    BatchSize::LargeInput,
+                )
+            },
+            &SIZES,
+        )
+        .with_function("llr-", |b, &&size| {
+            b.iter_batched(
+                || {
+                    let (left, rest) = vec![0u8; size].split_inplace_at(size / 2);
+                    (left, rest.split_inplace_at(size / 4).0)
+                },
+                |(left, right)| VecShard::merge(left, right),
+                BatchSize::LargeInput,
+            )
+        })
+        .with_function("ll-r", |b, &&size| {
+            b.iter_batched(
+                || {
+                    let (left, rest) = vec![0u8; size].split_inplace_at(size / 2);
+                    (left, rest.split_inplace_at(size / 4).1)
+                },
+                |(left, right)| VecShard::merge(left, right),
+                BatchSize::LargeInput,
+            )
+        })
+        .with_function("l-rr", |b, &&size| {
+            b.iter_batched(
+                || {
+                    let (left, rest) = vec![0u8; size].split_inplace_at(size / 4);
+                    (left, rest.split_inplace_at(size / 4).1)
+                },
+                |(left, right)| VecShard::merge(left, right),
+                BatchSize::LargeInput,
+            )
+        })
+        .with_function("lr--", |b, &&size| {
+            b.iter_batched(
+                || {
+                    vec![0u8; size]
+                        .split_inplace_at(size / 2)
+                        .0
+                        .split_inplace_at(size / 4)
+                },
+                |(left, right)| VecShard::merge(left, right),
+                BatchSize::LargeInput,
+            )
+        })
+        .with_function("-lr-", |b, &&size| {
+            b.iter_batched(
+                || {
+                    let (left, right) = vec![0u8; size].split_inplace_at(size / 2);
+                    (
+                        left.split_inplace_at(size / 4).1,
+                        right.split_inplace_at(size / 4).0,
+                    )
+                },
+                |(left, right)| VecShard::merge(left, right),
+                BatchSize::LargeInput,
+            )
+        })
+        .with_function("--lr", |b, &&size| {
+            b.iter_batched(
+                || {
+                    vec![0u8; size]
+                        .split_inplace_at(size / 2)
+                        .1
+                        .split_inplace_at(size / 4)
+                },
+                |(left, right)| VecShard::merge(left, right),
+                BatchSize::LargeInput,
+            )
+        })
+        .with_function("rlll", |b, &&size| {
+            b.iter_batched(
+                || vec![0u8; size].split_inplace_at(size / 4),
+                |(left, right)| VecShard::merge(right, left),
+                BatchSize::LargeInput,
+            )
+        })
+        .with_function("rrll", |b, &&size| {
+            b.iter_batched(
+                || vec![0u8; size].split_inplace_at(size / 2),
+                |(left, right)| VecShard::merge(right, left),
+                BatchSize::LargeInput,
+            )
+        })
+        .with_function("rrrl", |b, &&size| {
+            b.iter_batched(
+                || vec![0u8; size].split_inplace_at(3 * size / 4),
+                |(left, right)| VecShard::merge(right, left),
+                BatchSize::LargeInput,
+            )
+        })
+        .with_function("rl--", |b, &&size| {
+            b.iter_batched(
+                || {
+                    vec![0u8; size]
+                        .split_inplace_at(size / 2)
+                        .0
+                        .split_inplace_at(size / 4)
+                },
+                |(left, right)| VecShard::merge(right, left),
+                BatchSize::LargeInput,
+            )
+        })
+        .with_function("--rl", |b, &&size| {
+            b.iter_batched(
+                || {
+                    vec![0u8; size]
+                        .split_inplace_at(size / 2)
+                        .1
+                        .split_inplace_at(size / 4)
+                },
+                |(left, right)| VecShard::merge(right, left),
+                BatchSize::LargeInput,
+            )
+        })
+        .with_function("rr-l", |b, &&size| {
+            b.iter_batched(
+                || {
+                    let (left, rest) = vec![0u8; size].split_inplace_at(size / 2);
+                    (left, rest.split_inplace_at(size / 4).1)
+                },
+                |(left, right)| VecShard::merge(right, left),
+                BatchSize::LargeInput,
+            )
+        })
+        .with_function("r-ll", |b, &&size| {
+            b.iter_batched(
+                || {
+                    let (left, rest) = vec![0u8; size].split_inplace_at(size / 4);
+                    (left, rest.split_inplace_at(size / 4).1)
+                },
+                |(left, right)| VecShard::merge(right, left),
+                BatchSize::LargeInput,
+            )
+        })
+        .with_function("lrxx", |b, &&size| {
+            b.iter_batched(
+                || {
+                    let (left, rest) = vec![0u8; size].split_inplace_at(size / 4);
+                    let (right, guard) = rest.split_inplace_at(size / 4);
+                    (left, guard, right)
+                },
+                |(left, right, guard)| (VecShard::merge(left, right), guard),
+                BatchSize::LargeInput,
+            )
+        })
+        .with_function("lxxr", |b, &&size| {
+            b.iter_batched(
+                || {
+                    let (left, rest) = vec![0u8; size].split_inplace_at(size / 4);
+                    let (guard, right) = rest.split_inplace_at(size / 2);
+                    (left, right, guard)
+                },
+                |(left, right, guard)| (VecShard::merge(left, right), guard),
+                BatchSize::LargeInput,
+            )
+        })
+        .with_function("llxr", |b, &&size| {
+            b.iter_batched(
+                || {
+                    let (left, rest) = vec![0u8; size].split_inplace_at(size / 2);
+                    let (guard, right) = rest.split_inplace_at(size / 4);
+                    (left, right, guard)
+                },
+                |(left, right, guard)| (VecShard::merge(left, right), guard),
+                BatchSize::LargeInput,
+            )
+        })
+        .with_function("rrxl", |b, &&size| {
+            b.iter_batched(
+                || {
+                    let (left, rest) = vec![0u8; size].split_inplace_at(size / 2);
+                    let (guard, right) = rest.split_inplace_at(size / 4);
+                    (left, right, guard)
+                },
+                |(left, right, guard)| (VecShard::merge(right, left), guard),
+                BatchSize::LargeInput,
+            )
+        })
+        .warm_up_time(Duration::from_secs(1))
+        .sample_size(1000)
+        .plot_config(PlotConfiguration::default().summary_scale(Logarithmic)),
+    );
+}
+
+criterion_group!(vs_vec, split, index, merge, iterate);
+criterion_group!(merges, merge_patterns);
+criterion_main!(vs_vec, merges);
