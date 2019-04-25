@@ -79,6 +79,7 @@ assert_eq!(*shard, ['e', 't']);
 */
 
 use std::{
+    cmp::{PartialEq, Eq},
     fmt,
     iter::FusedIterator,
     mem,
@@ -368,6 +369,14 @@ impl<T, I: SliceIndex<[T]>> IndexMut<I> for VecShard<T> {
         &mut ((**self)[idx])
     }
 }
+
+impl<T : PartialEq> PartialEq for VecShard<T> {
+    fn eq(&self, rhs: &Self) -> bool {
+        **self == **rhs
+    }
+}
+
+impl<T : Eq> Eq for VecShard<T> {}
 
 impl<T> Iterator for VecShard<T> {
     type Item = T;

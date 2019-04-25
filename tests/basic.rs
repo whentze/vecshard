@@ -67,7 +67,7 @@ fn clone_works() {
     let vec = vec![1, 2, 6, 24, 120];
     let (left, _) = vec.split_inplace_at(3);
 
-    assert_eq!(*left, *(left.clone()));
+    assert_eq!(left, left.clone());
     assert_eq!(*left, [1, 2, 6]);
 }
 
