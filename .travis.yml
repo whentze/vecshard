@@ -25,11 +25,11 @@ before_script: |
   fi
 
 script: |
-  cargo clean
-  cargo test
   if [[ "$TRAVIS_RUST_VERSION" == nightly-2019-04-12 ]]; then
     cargo clean
     cargo miri test
+  else
+    cargo test --features "serde"
   fi
 
 
