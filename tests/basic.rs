@@ -27,7 +27,7 @@ fn vec_roundtrip() {
 
 #[test]
 fn into_vecs() {
-    let (left, right) = vec![1, 11, 21, 12_11, 11_12_21, 312211].split_inplace_at(3);
+    let (left, right) = vec![1, 11, 21, 12_11, 11_12_21, 31_22_11].split_inplace_at(3);
 
     // this one needs to allocate a new Vec, since right still exists
     let lvec: Vec<_> = left.into();
