@@ -20,6 +20,13 @@ pub enum WouldMove {
     WrongOrder,
 }
 
+/// A reason why a no-alloc merge was unsuccesful.
+#[derive(Debug, PartialEq, Eq, Copy, Clone)]
+pub enum WouldAlloc {
+    DifferentAllocations,
+    OtherShardsLeft,
+}
+
 impl Display for WouldMove {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         use WouldMove::*;
@@ -35,10 +42,24 @@ impl Display for WouldMove {
     }
 }
 
-impl<T> Display for CantMerge<T, WouldMove> {
+impl Display for WouldAlloc {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Can not perform merge in-place because {}", self.reason)
+        use WouldAlloc::*;
+        write!(
+            f,
+            "the two shards are {}",
+            match self {
+                DifferentAllocations => "not from the same memory allocation.",
+                OtherShardsLeft => "not directly adjacent in memory and can't be moved around because there are still other shards in the Vec",
+            }
+        )
     }
 }
 
-impl<T: Debug> Error for CantMerge<T, WouldMove> {}
+impl<T, R: Display> Display for CantMerge<T, R> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Can't perform quick merge because {}", self.reason)
+    }
+}
+
+impl<T: Debug, R: Debug + Display> Error for CantMerge<T, R> {}

@@ -125,16 +125,25 @@ fn unlucky_merges() {
         ..
     } = VecShard::merge_inplace(middle, left).unwrap_err();
 
-    assert_eq!(reason.to_string(), "the two shards are adjacent, but were passed in the reverse order.");
+    assert_eq!(
+        reason.to_string(),
+        "the two shards are adjacent, but were passed in the reverse order."
+    );
 
     let CantMerge { left, reason, .. } = VecShard::merge_inplace(left, right).unwrap_err();
 
-    assert_eq!(reason.to_string(), "the two shards are not directly adjacent in memory.");
+    assert_eq!(
+        reason.to_string(),
+        "the two shards are not directly adjacent in memory."
+    );
 
     let different = VecShard::from(vec![4, 5, 2, 5, 7]);
 
     let err = VecShard::merge_inplace(left, different).unwrap_err();
-    assert_eq!(err.to_string(), "Can not perform merge in-place because the two shards are not from the same memory allocation.");
+    assert_eq!(
+        err.to_string(),
+        "Can't perform quick merge because the two shards are not from the same memory allocation."
+    );
 }
 
 #[test]

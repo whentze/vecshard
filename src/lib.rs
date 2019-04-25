@@ -89,7 +89,7 @@ use std::{
 };
 
 pub mod error;
-use crate::error::{CantMerge, WouldMove};
+use crate::error::{CantMerge, WouldAlloc, WouldMove};
 
 /// An extension trait for things that can be split into shards
 ///
@@ -200,30 +200,42 @@ impl<T> VecShard<T> {
         }
     }
 
-    /// Merge the given shards into a single shard.
+    /// Try to merge the given shards without allocating a new `Vec`.
     ///
-    /// This will attempt an O(1) merge like `merge_inplace` but fall back to copying slices around
-    /// within their allocation and possibly allocating a new Vec if needed.
-    pub fn merge(left: Self, right: Self) -> Self {
+    /// This function will always succeed if the passed shards can be merged in-place
+    /// or if they're the only two shards within a Vec.
+    ///
+    /// Returns the merged shard on success and an `Err` otherwise.
+    ///
+    /// This function may take time line in the length of the input shards, but it will never allocate.
+    pub fn merge_noalloc(left: Self, right: Self) -> Result<Self, CantMerge<T, WouldAlloc>> {
         use WouldMove::*;
 
         let cant_merge = match Self::merge_inplace(left, right) {
             // happy path
-            Ok(shard) => return shard,
+            Ok(shard) => return Ok(shard),
             Err(err) => err,
         };
 
+        if cant_merge.reason == DifferentAllocations {
+            return Err(CantMerge {
+                left: cant_merge.left,
+                right: cant_merge.right,
+                reason: WouldAlloc::DifferentAllocations,
+            });
+        }
+
         let (ldropper, ldata, llen) = cant_merge.left.into_raw_parts();
-        let (_rdropper, rdata, rlen) = cant_merge.right.into_raw_parts();
+        let (rdropper, rdata, rlen) = cant_merge.right.into_raw_parts();
 
         if cant_merge.reason == WrongOrder {
             // semi-fast path: we only need to rotate
             unsafe { slice::from_raw_parts_mut(rdata, llen + rlen).rotate_left(rlen) };
-            VecShard {
+            Ok(VecShard {
                 dropper: ldropper,
                 data: rdata,
                 len: llen + rlen,
-            }
+            })
         } else if cant_merge.reason == NotAdjacent && Arc::strong_count(&ldropper) == 2 {
             // There are only 2 references to the dropper left,
             // and we're holding ldropper and rdropper, so we can freely re-use the allocation
@@ -257,12 +269,37 @@ impl<T> VecShard<T> {
                     ldata
                 }
             };
-            VecShard {
+            Ok(VecShard {
                 data: new_data,
                 len: llen + rlen,
                 dropper: ldropper,
-            }
+            })
         } else {
+            Err(CantMerge {
+                reason: WouldAlloc::OtherShardsLeft,
+                left: VecShard {
+                    dropper: ldropper,
+                    data: ldata,
+                    len: llen,
+                },
+                right: VecShard {
+                    dropper: rdropper,
+                    data: rdata,
+                    len: rlen,
+                },
+            })
+        }
+    }
+
+    /// Merge the given shards into a single shard.
+    ///
+    /// This will attempt an O(1) merge like `merge_inplace` but fall back to copying slices around
+    /// within their allocation and possibly allocating a new Vec if needed.
+    pub fn merge(left: Self, right: Self) -> Self {
+        Self::merge_noalloc(left, right).unwrap_or_else(|err| {
+            let (_ldropper, ldata, llen) = err.left.into_raw_parts();
+            let (_rdropper, rdata, rlen) = err.right.into_raw_parts();
+
             // Give up and allocate
             let mut vec = Vec::with_capacity(llen + rlen);
             unsafe {
@@ -271,7 +308,7 @@ impl<T> VecShard<T> {
                 vec.set_len(llen + rlen);
             }
             Self::from(vec)
-        }
+        })
     }
 }
 
