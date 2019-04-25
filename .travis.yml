@@ -9,6 +9,7 @@ cache: cargo
 rust:
   - stable
   - beta
+  - nightly
   - nightly-2019-04-12
 
 before_cache: |
