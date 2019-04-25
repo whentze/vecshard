@@ -83,7 +83,7 @@ you can enable the `serde` feature like this:
 ```toml
 [dependencies.vecshard]
 optional = true
-version = "0.2.0"
+version = "0.2.1"
 ```
 
 [`VecShard`]: crate::VecShard
