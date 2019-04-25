@@ -16,7 +16,11 @@ coveralls = { repository = "whentze/vecshard" }
 
 [dev-dependencies]
 criterion = "0.2.11"
+serde_test = "1.0.90"
 
 [[bench]]
 name = "criterion"
 harness = false
+
+[dependencies]
+serde = { optional = true, version = "1.0.90" }

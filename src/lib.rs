@@ -75,6 +75,17 @@ assert_eq!(Some('e'), shard.next());
 assert_eq!(*shard, ['e', 't']);
 ```
 
+# Optional Features
+
+This crate has zero dependencies by default, but if you want to serialize and deserialize `VecShard`,
+you can enable the `serde` feature like this:
+
+```toml
+[dependencies.vecshard]
+optional = true
+version = "0.2.0"
+```
+
 [`VecShard`]: crate::VecShard
 */
 
@@ -91,6 +102,9 @@ use std::{
 
 pub mod error;
 use crate::error::{CantMerge, WouldAlloc, WouldMove};
+
+#[cfg(feature = "serde")]
+mod serde_impl;
 
 /// An extension trait for things that can be split into shards
 ///
