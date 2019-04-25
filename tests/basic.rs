@@ -120,6 +120,14 @@ fn unlucky_merges() {
     assert_eq!(reason, WrongOrder);
 
     let CantMerge {
+        left,
+        right,
+        reason,
+    } = VecShard::merge_noalloc(left, right).unwrap_err();
+
+    assert_eq!(reason.to_string(), "the two shards are not directly adjacent in memory and can't be moved around because there are still other shards in the Vec");
+
+    let CantMerge {
         right: left,
         reason,
         ..
@@ -140,6 +148,12 @@ fn unlucky_merges() {
     let different = VecShard::from(vec![4, 5, 2, 5, 7]);
 
     let err = VecShard::merge_inplace(left, different).unwrap_err();
+    assert_eq!(
+        err.to_string(),
+        "Can't perform quick merge because the two shards are not from the same memory allocation."
+    );
+    // no-alloc should not work in this case either
+    let err = VecShard::merge_noalloc(err.left, err.right).unwrap_err();
     assert_eq!(
         err.to_string(),
         "Can't perform quick merge because the two shards are not from the same memory allocation."
