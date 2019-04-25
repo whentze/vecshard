@@ -82,3 +82,14 @@ assert_eq!(Some('e'), shard.next());
 
 assert_eq!(*shard, ['e', 't']);
 ```
+
+## Optional Features
+
+This crate has zero dependencies by default, but if you want to serialize and deserialize `VecShard`,
+you can enable the `serde` feature like this:
+
+```toml
+[dependencies.vecshard]
+optional = true
+version = "0.2.1"
+```
