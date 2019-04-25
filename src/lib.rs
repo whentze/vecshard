@@ -345,6 +345,10 @@ impl<T> Iterator for VecShard<T> {
             None
         }
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        (self.len, Some(self.len))
+    }
 }
 
 impl<T> ExactSizeIterator for VecShard<T> {

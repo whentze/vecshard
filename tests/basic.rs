@@ -199,3 +199,19 @@ fn backwards_iteration() {
     assert_eq!(shard.next_back(), Some(2));
     assert_eq!(shard.next_back(), None);
 }
+
+#[test]
+fn lens_match_up() {
+    let s1 = VecShard::from(vec![]);
+    let s2 = VecShard::from(vec![0]);
+    let (s3, s4) = vec![0; 100].split_inplace_at(10);
+    let mut s5 = s3.clone();
+    s5.next();
+    s5.next_back();
+
+    for shard in &[s1, s2, s3, s4, s5] {
+        assert_eq!(shard.len(), ExactSizeIterator::len(shard));
+        assert_eq!(shard.len(), shard.size_hint().0);
+        assert_eq!(shard.len(), shard.size_hint().1.unwrap());
+    }
+}
