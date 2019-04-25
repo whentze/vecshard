@@ -167,7 +167,7 @@ impl<T> VecShard<T> {
     /// Returns the merged shard on success and an `Err` otherwise.
     ///
     /// This function will always run in O(1) time.
-    pub fn merge_inplace(left: Self, right: Self) -> Result<Self, CantMerge<Self, WouldMove>> {
+    pub fn merge_inplace(left: Self, right: Self) -> Result<Self, CantMerge<T, WouldMove>> {
         use WouldMove::*;
         // Are the shards even from the same Vec?
         if !Arc::ptr_eq(&left.dropper, &right.dropper) {
