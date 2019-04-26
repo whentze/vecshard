@@ -258,6 +258,23 @@ fn lens_match_up() {
 }
 
 #[test]
+fn borrow_schmorrow() {
+    use std::borrow::{Borrow, BorrowMut};
+
+    let mut s = VecShard::from(vec!["sag", "ich", "immer"]);
+    fn cast_schmast<T>(r: &[T]) -> (usize, usize) {
+        (r.as_ptr() as usize, r.len())
+    }
+
+    assert_eq!(cast_schmast(&*s), cast_schmast(&mut *s));
+    assert_eq!(cast_schmast(&*s), cast_schmast(&s[..]));
+    assert_eq!(cast_schmast(&*s), cast_schmast(s.as_ref()));
+    assert_eq!(cast_schmast(&*s), cast_schmast(s.as_mut()));
+    assert_eq!(cast_schmast(&*s), cast_schmast(s.borrow()));
+    assert_eq!(cast_schmast(&*s), cast_schmast(s.borrow_mut()));
+}
+
+#[test]
 fn zst_elements() {
     let (mut left, mut right) = vec![(); 30].split_inplace_at(15);
 

@@ -90,6 +90,7 @@ version = "0.2.1"
 */
 
 use std::{
+    borrow::{Borrow, BorrowMut},
     cmp::{Eq, PartialEq},
     fmt,
     hash::{Hash, Hasher},
@@ -365,6 +366,30 @@ impl<T> Deref for VecShard<T> {
 impl<T> DerefMut for VecShard<T> {
     fn deref_mut(&mut self) -> &mut [T] {
         unsafe { slice::from_raw_parts_mut(self.data, self.len) }
+    }
+}
+
+impl<T> AsRef<[T]> for VecShard<T> {
+    fn as_ref(&self) -> &[T] {
+        &*self
+    }
+}
+
+impl<T> AsMut<[T]> for VecShard<T> {
+    fn as_mut(&mut self) -> &mut [T] {
+        &mut *self
+    }
+}
+
+impl<T> Borrow<[T]> for VecShard<T> {
+    fn borrow(&self) -> &[T] {
+        &*self
+    }
+}
+
+impl<T> BorrowMut<[T]> for VecShard<T> {
+    fn borrow_mut(&mut self) -> &mut [T] {
+        &mut *self
     }
 }
 
